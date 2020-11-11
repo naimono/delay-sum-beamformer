@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IPlug_include_in_plug_hdr.h"
+#include <cstring>
 
 const int kNumPresets = 1;
 
@@ -9,6 +10,8 @@ enum EParams
     
   kMicDist,
   kAngle,
+  kOpt,
+  kFreq,
   kNumParams
 
 };
@@ -33,6 +36,8 @@ public:
 private:
   double mGain;
   double mAngle = 0.;
+  int mOpt = 0;
+  double mFreq = 3000.;
   double mMicDist = 0.2;
   double sound_vel = 343.;
     
