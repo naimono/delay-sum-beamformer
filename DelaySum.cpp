@@ -25,7 +25,6 @@ DelaySum::DelaySum(const InstanceInfo& info)
     // Add title
     pGraphics->AttachControl(new ITextControl(b.GetMidVPadded(50).GetVShifted(-70), "Delay Sum Beamformer", IText(40)));
 
-    int idx = 0;
     // Add knobs
     pGraphics->AttachControl(new IVKnobControl(b.GetCentredInside(100).GetVShifted(20).GetHShifted(-150), kAngle));
     pGraphics->AttachControl(new IVKnobControl(b.GetCentredInside(100).GetVShifted(20).GetHShifted(-50), kMicDist));
@@ -44,14 +43,14 @@ DelaySum::DelaySum(const InstanceInfo& info)
         case 0:
               pGraphics->ForStandardControlsFunc([pCaller](IControl& control) {
                   if(&control != pCaller && control.GetParamIdx() == kFreq) {
-                      control.SetDisabled(true);
+                      control.SetDisabled(false);
                   }
               });
           break;
         case 1:
               pGraphics->ForStandardControlsFunc([pCaller](IControl& control) {
                   if(&control != pCaller && control.GetParamIdx() == kFreq) {
-                      control.SetDisabled(false);
+                      control.SetDisabled(true);
                   }
               });
           break;
@@ -174,10 +173,10 @@ void DelaySum::getDelay() {
     mDelaySam1 = 0.;
   }
   else if(mAngle > 0) {
-    if (mOpt == 0) {
+    if (mOpt == 1) {
       mDelaySam1 = (mMicDist/sound_vel)*(mAngle+sin(mAngle))*GetSampleRate();
     }
-    else if (mOpt == 1) {
+    else if (mOpt == 0) {
       mDelaySam1 = 0.18 * sqrt(mFreq*sin(mAngle)) * GetSampleRate();
     }
       
@@ -186,10 +185,10 @@ void DelaySum::getDelay() {
   else if(mAngle < 0) {
     mDelaySam1 = 0.;
       
-    if (mOpt == 0) {
+    if (mOpt == 1) {
       mDelaySam2 = (mMicDist/sound_vel)*(abs(mAngle)+sin(abs(mAngle)))*GetSampleRate();
     }
-    else if (mOpt == 1) {
+    else if (mOpt == 0) {
       mDelaySam2 = 0.18 * sqrt(mFreq*sin(abs(mAngle))) * GetSampleRate();
     }
   }
