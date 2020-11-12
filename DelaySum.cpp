@@ -8,6 +8,8 @@ DelaySum::DelaySum(const InstanceInfo& info)
 {
     GetParam(kAngle)->InitDouble("Angle", 0., -90., 90., 0.01, "º");
     GetParam(kMicDist)->InitDouble("Distance", 0.2, 0., 1., 0.01, "m");
+    GetParam(kOpt)->InitInt("Mode", 0, 0, 1);
+    GetParam(kFreq)->InitDouble("Frequency", 3000., 1000., 20000., 0.1, "Hz");
 
 #if IPLUG_EDITOR // http://bit.ly/2S64BDd
   mMakeGraphicsFunc = [&]() {
@@ -22,24 +24,38 @@ DelaySum::DelaySum(const InstanceInfo& info)
     
     // Add title
     pGraphics->AttachControl(new ITextControl(b.GetMidVPadded(50).GetVShifted(-70), "Delay Sum Beamformer", IText(40)));
-    
+
     // Add knobs
-    pGraphics->AttachControl(new IVKnobControl(b.GetCentredInside(100).GetVShifted(20).GetHShifted(-100), kAngle));
-    pGraphics->AttachControl(new IVKnobControl(b.GetCentredInside(100).GetVShifted(20).GetHShifted(0), kMicDist));
+    pGraphics->AttachControl(new IVKnobControl(b.GetCentredInside(100).GetVShifted(20).GetHShifted(-150), kAngle));
+    pGraphics->AttachControl(new IVKnobControl(b.GetCentredInside(100).GetVShifted(20).GetHShifted(-50), kMicDist));
+    pGraphics->AttachControl(new IVKnobControl(b.GetCentredInside(100).GetVShifted(20).GetHShifted(50), kFreq));
     
     // Add SVG Graphic
     const ISVG svg = pGraphics->LoadSVG(GRAPHIC_FN);
     const IRECT bnds = pGraphics->GetBounds();
-    pGraphics->AttachControl(new ISVGControl(bnds.GetScaled(0.6).GetVShifted(50).GetHShifted(320), svg));
-      
+    pGraphics->AttachControl(new ISVGControl(bnds.GetScaled(0.6).GetVShifted(50).GetHShifted(400), svg));
+    
+    // Add ITD and ILD options
     pGraphics->AttachControl(new IVRadioButtonControl(IRECT(30.,70.,80.,170.), [pGraphics](IControl* pCaller) {
-        SplashClickActionFunc(pCaller);
-        EVShape shape = (EVShape) pCaller->As<IVRadioButtonControl>()->GetSelectedIdx();
-        pGraphics->ForControlInGroup("vcontrols", [pCaller, shape](IControl& control) {
-            IVectorBase& vcontrol = dynamic_cast<IVectorBase&>(control);
-            vcontrol.SetShape(shape);
-        });
-    }, {"ITD", "ILD"}, "Types", DEFAULT_STYLE, EVShape::Ellipse, EDirection::Vertical, 10.f), kNoTag);
+      SplashClickActionFunc(pCaller);
+      int idx = pCaller->As<IVRadioButtonControl>()->GetSelectedIdx();
+      switch (idx) {
+        case 0:
+              pGraphics->ForStandardControlsFunc([pCaller](IControl& control) {
+                  if(&control != pCaller && control.GetParamIdx() == kFreq) {
+                      control.SetDisabled(false);
+                  }
+              });
+          break;
+        case 1:
+              pGraphics->ForStandardControlsFunc([pCaller](IControl& control) {
+                  if(&control != pCaller && control.GetParamIdx() == kFreq) {
+                      control.SetDisabled(true);
+                  }
+              });
+          break;
+      }
+    }, {"ITD", "ILD"}, "Mode", DEFAULT_STYLE, EVShape::Ellipse, EDirection::Vertical, 10.f), kOpt);
   };
 #endif
 }
@@ -148,19 +164,33 @@ void DelaySum::getDelay() {
   // Get value from GUI
   mAngle = GetParam(kAngle)->Value() * M_PI / 180.;
   mMicDist = GetParam(kMicDist)->Value();
-    
+  mOpt = GetParam(kOpt)->Int();
+  mFreq = GetParam(kFreq)->Value();
+
   // Set delays according to interaural time delay (ITD)
   if (mAngle == 0) {
     mDelaySam1 = 0.;
     mDelaySam1 = 0.;
   }
   else if(mAngle > 0) {
-    mDelaySam1 = (mMicDist/sound_vel)*(mAngle+sin(mAngle))*GetSampleRate();
+    if (mOpt == 1) {
+      mDelaySam1 = (mMicDist/sound_vel)*(mAngle+sin(mAngle))*GetSampleRate();
+    }
+    else if (mOpt == 0) {
+      mDelaySam1 = 0.18 * sqrt(mFreq*sin(mAngle)) * GetSampleRate();
+    }
+      
     mDelaySam2 = 0.;
   }
   else if(mAngle < 0) {
     mDelaySam1 = 0.;
-    mDelaySam2 = (mMicDist/sound_vel)*(abs(mAngle)+sin(abs(mAngle)))*GetSampleRate();
+      
+    if (mOpt == 1) {
+      mDelaySam2 = (mMicDist/sound_vel)*(abs(mAngle)+sin(abs(mAngle)))*GetSampleRate();
+    }
+    else if (mOpt == 0) {
+      mDelaySam2 = 0.18 * sqrt(mFreq*sin(abs(mAngle))) * GetSampleRate();
+    }
   }
     
   // Set ReadIndex (Wrap if less than 0)
